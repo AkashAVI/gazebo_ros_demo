@@ -1,0 +1,706 @@
+===========================================================================================================
+CREATE CATKIN WORKSPACE
+===========================================================================================================
+akash@akash-VirtualBox:~$ mkdir -p ~/catkin_ws/src
+akash@akash-VirtualBox:~$ cd catkin_ws
+akash@akash-VirtualBox:~/catkin_ws$ catkin_make
+
+Base path: /home/akash/catkin_ws
+Source space: /home/akash/catkin_ws/src
+Build space: /home/akash/catkin_ws/build
+Devel space: /home/akash/catkin_ws/devel
+Install space: /home/akash/catkin_ws/install
+Creating symlink "/home/akash/catkin_ws/src/CMakeLists.txt" pointing to "/opt/ros/noetic/share/catkin/cmake/toplevel.cmake"
+####
+#### Running command: "cmake /home/akash/catkin_ws/src -DCATKIN_DEVEL_PREFIX=/home/akash/catkin_ws/devel -DCMAKE_INSTALL_PREFIX=/home/akash/catkin_ws/install -G Unix Makefiles" in "/home/akash/catkin_ws/build"
+####
+-- The C compiler identification is GNU 9.3.0
+-- The CXX compiler identification is GNU 9.3.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Using CATKIN_DEVEL_PREFIX: /home/akash/catkin_ws/devel
+-- Using CMAKE_PREFIX_PATH: /opt/ros/noetic
+-- This workspace overlays: /opt/ros/noetic
+-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.8.5", minimum required is "3") 
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+-- Using Debian Python package layout
+-- Found PY_em: /usr/lib/python3/dist-packages/em.py  
+-- Using empy: /usr/lib/python3/dist-packages/em.py
+-- Using CATKIN_ENABLE_TESTING: ON
+-- Call enable_testing()
+-- Using CATKIN_TEST_RESULTS_DIR: /home/akash/catkin_ws/build/test_results
+-- Forcing gtest/gmock from source, though one was otherwise available.
+-- Found gtest sources under '/usr/src/googletest': gtests will be built
+-- Found gmock sources under '/usr/src/googletest': gmock will be built
+-- Found PythonInterp: /usr/bin/python3 (found version "3.8.5") 
+-- Found Threads: TRUE  
+-- Using Python nosetests: /usr/bin/nosetests3
+-- catkin 0.8.9
+-- BUILD_SHARED_LIBS is on
+-- BUILD_SHARED_LIBS is on
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/akash/catkin_ws/build
+####
+#### Running command: "make -j1 -l1" in "/home/akash/catkin_ws/build"
+####
+------------------------------------------------------------------------------------------------------------
+CREATE OPENCV_DEMO PACKAGE WITH SPECIFIED DEPENDENCIES
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws$ source devel/setup.bash
+akash@akash-VirtualBox:~/catkin_ws/src$ catkin_create_pkg opencv_demo cv_bridge image_transport roscpp sensor_msgs std_msgs
+
+Created file opencv_demo/package.xml
+Created file opencv_demo/CMakeLists.txt
+Created folder opencv_demo/include/opencv_demo
+Created folder opencv_demo/src
+Successfully created files in /home/akash/catkin_ws/src/opencv_demo. Please adjust the values in package.xml.
+akash@akash-VirtualBox:~/catkin_ws/src$ rospack depends opencv_demo
+cpp_common
+catkin
+genmsg
+gencpp
+geneus
+gennodejs
+genlisp
+genpy
+message_generation
+rostime
+roscpp_traits
+roscpp_serialization
+message_runtime
+rosbuild
+rosconsole
+cv_bridge
+std_msgs
+rosgraph_msgs
+xmlrpcpp
+roscpp
+message_filters
+pluginlib
+ros_environment
+rospack
+roslib
+geometry_msgs
+sensor_msgs
+image_transport
+------------------------------------------------------------------------------------------------------------
+CREATE AND EDIT SOURCE CODE
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws/src$ cd opencv_demo
+akash@akash-VirtualBox:~/catkin_ws/src/opencv_demo$ ls
+CMakeLists.txt  include  package.xml  src
+akash@akash-VirtualBox:~/catkin_ws/src/opencv_demo$ cd src
+akash@akash-VirtualBox:~/catkin_ws/src/opencv_demo/src$ touch image_converter.cpp
+akash@akash-VirtualBox:~/catkin_ws/src/opencv_demo/src$ gedit image_converter.cpp
+*** COPY PASTE CODE 
+/////////////////////////////////////////////////////////////
+#include <ros/ros.h>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+static const std::string OPENCV_WINDOW = "Image window";
+
+class ImageConverter
+{
+  ros::NodeHandle nh_;
+  image_transport::ImageTransport it_;
+  image_transport::Subscriber image_sub_;
+  image_transport::Publisher image_pub_;
+
+public:
+  ImageConverter()
+    : it_(nh_)
+  {
+    // Subscrive to input video feed and publish output video feed
+    image_sub_ = it_.subscribe("/camera/image_raw", 1,
+      &ImageConverter::imageCb, this);
+    image_pub_ = it_.advertise("/image_converter/output_video", 1);
+
+    cv::namedWindow(OPENCV_WINDOW);
+  }
+
+  ~ImageConverter()
+  {
+    cv::destroyWindow(OPENCV_WINDOW);
+  }
+
+  void imageCb(const sensor_msgs::ImageConstPtr& msg)
+  {
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+      cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+      return;
+    }
+
+    // Draw an example circle on the video stream
+    if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
+      cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
+
+    // Update GUI Window
+    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    cv::waitKey(3);
+
+    // Output modified video stream
+    image_pub_.publish(cv_ptr->toImageMsg());
+  }
+};
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "image_converter");
+  ImageConverter ic;
+  ros::spin();
+  return 0;
+}
+///////////////////////////////////////////////////////////
+------------------------------------------------------------------------------------------------------------
+CREATE PACKAGE GAZEBO_ROS_DEMOS. CLONE FROM https://github.com/AkashAVI/gazebo_ros_demo.git
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws/src/opencv_demo/src$ cd ..
+akash@akash-VirtualBox:~/catkin_ws/src/opencv_demo$ cd ..
+akash@akash-VirtualBox:~/catkin_ws/src$ git clone https://github.com/ros-simulation/gazebo_ros_demos.git
+
+Cloning into 'gazebo_ros_demos'...
+remote: Enumerating objects: 53, done.
+remote: Counting objects: 100% (53/53), done.
+remote: Compressing objects: 100% (37/37), done.
+remote: Total 392 (delta 21), reused 31 (delta 11), pack-reused 339
+Receiving objects: 100% (392/392), 107.12 KiB | 87.00 KiB/s, done.
+Resolving deltas: 100% (179/179), done.
+akash@akash-VirtualBox:~/catkin_ws/src$ ls
+CMakeLists.txt  gazebo_ros_demos  opencv_demo
+akash@akash-VirtualBox:~/catkin_ws/src$ rosdep update
+reading in sources list data from /etc/ros/rosdep/sources.list.d
+Hit https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/osx-homebrew.yaml
+Hit https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml
+Hit https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/python.yaml
+Hit https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/ruby.yaml
+Hit https://raw.githubusercontent.com/ros/rosdistro/master/releases/fuerte.yaml
+Query rosdistro index https://raw.githubusercontent.com/ros/rosdistro/master/index-v4.yaml
+Skip end-of-life distro "ardent"
+Skip end-of-life distro "bouncy"
+Skip end-of-life distro "crystal"
+Add distro "dashing"
+Skip end-of-life distro "eloquent"
+Add distro "foxy"
+Skip end-of-life distro "groovy"
+Skip end-of-life distro "hydro"
+Skip end-of-life distro "indigo"
+Skip end-of-life distro "jade"
+Add distro "kinetic"
+Skip end-of-life distro "lunar"
+Add distro "melodic"
+Add distro "noetic"
+Add distro "rolling"
+updated cache in /home/akash/.ros/rosdep/sources.cache
+------------------------------------------------------------------------------------------------------------
+FOR THE INSTALLED PACKAGE, CHECK FOR MISSING DEPENDENCIES IF ANY
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws/src$ rosdep check --from-paths . --ignore-src 
+System dependencies have not been satisfied:
+apt	ros-noetic-effort-controllers
+------------------------------------------------------------------------------------------------------------
+INSTALL MISSING DEPENDENCY
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws/src$ rosdep install --from-paths . --ignore-src -y
+
+executing command [sudo -H apt-get install -y ros-noetic-effort-controllers]
+[sudo] password for akash: 
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following NEW packages will be installed:
+  ros-noetic-effort-controllers
+0 upgraded, 1 newly installed, 0 to remove and 25 not upgraded.
+Need to get 83.9 kB of archives.
+After this operation, 364 kB of additional disk space will be used.
+Get:1 http://packages.ros.org/ros/ubuntu focal/main amd64 ros-noetic-effort-controllers amd64 0.18.1-1focal.20210302.134602 [83.9 kB]
+Fetched 83.9 kB in 8s (10.5 kB/s)                        
+Selecting previously unselected package ros-noetic-effort-controllers.
+(Reading database ... 273706 files and directories currently installed.)
+Preparing to unpack .../ros-noetic-effort-controllers_0.18.1-1focal.20210302.134602_amd64.deb ...
+Unpacking ros-noetic-effort-controllers (0.18.1-1focal.20210302.134602) ...
+Setting up ros-noetic-effort-controllers (0.18.1-1focal.20210302.134602) ...
+#All required rosdeps installed successfully
+------------------------------------------------------------------------------------------------------------
+BUILD THE PACKAGES TO GENERATE EXECUTABLES FROM THE SOURCE CODES
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws/src$ cd ..
+akash@akash-VirtualBox:~/catkin_ws$ catkin_make
+
+Base path: /home/akash/catkin_ws
+Source space: /home/akash/catkin_ws/src
+Build space: /home/akash/catkin_ws/build
+Devel space: /home/akash/catkin_ws/devel
+Install space: /home/akash/catkin_ws/install
+####
+#### Running command: "cmake /home/akash/catkin_ws/src -DCATKIN_DEVEL_PREFIX=/home/akash/catkin_ws/devel -DCMAKE_INSTALL_PREFIX=/home/akash/catkin_ws/install -G Unix Makefiles" in "/home/akash/catkin_ws/build"
+####
+-- Using CATKIN_DEVEL_PREFIX: /home/akash/catkin_ws/devel
+-- Using CMAKE_PREFIX_PATH: /home/akash/catkin_ws/devel;/opt/ros/noetic
+-- This workspace overlays: /home/akash/catkin_ws/devel;/opt/ros/noetic
+-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.8.5", minimum required is "3") 
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+-- Using Debian Python package layout
+-- Using empy: /usr/lib/python3/dist-packages/em.py
+-- Using CATKIN_ENABLE_TESTING: ON
+-- Call enable_testing()
+-- Using CATKIN_TEST_RESULTS_DIR: /home/akash/catkin_ws/build/test_results
+-- Forcing gtest/gmock from source, though one was otherwise available.
+-- Found gtest sources under '/usr/src/googletest': gtests will be built
+-- Found gmock sources under '/usr/src/googletest': gmock will be built
+-- Found PythonInterp: /usr/bin/python3 (found version "3.8.5") 
+-- Using Python nosetests: /usr/bin/nosetests3
+-- catkin 0.8.9
+-- BUILD_SHARED_LIBS is on
+-- BUILD_SHARED_LIBS is on
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- ~~  traversing 5 packages in topological order:
+-- ~~  - rrbot_control
+-- ~~  - rrbot_description
+-- ~~  - rrbot_gazebo
+-- ~~  - opencv_demo
+-- ~~  - gazebo_tutorials
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- +++ processing catkin package: 'rrbot_control'
+-- ==> add_subdirectory(gazebo_ros_demos/rrbot_control)
+-- +++ processing catkin package: 'rrbot_description'
+-- ==> add_subdirectory(gazebo_ros_demos/rrbot_description)
+-- +++ processing catkin package: 'rrbot_gazebo'
+-- ==> add_subdirectory(gazebo_ros_demos/rrbot_gazebo)
+-- +++ processing catkin package: 'opencv_demo'
+-- ==> add_subdirectory(opencv_demo)
+-- +++ processing catkin package: 'gazebo_tutorials'
+-- ==> add_subdirectory(gazebo_ros_demos/gazebo_tutorials)
+-- Using these message generators: gencpp;geneus;genlisp;gennodejs;genpy
+-- Found PkgConfig: /usr/bin/pkg-config (found version "0.29.1") 
+-- Checking for module 'bullet>=2.82'
+--   Found bullet, version 2.88
+-- Found ccd: /usr/include (found suitable version "2.0", minimum required is "2.0") 
+-- Found fcl: /usr/include (found suitable version "0.5.0", minimum required is "0.3.2") 
+-- Found assimp: /usr/include (found version "5.0.0") 
+-- Found DART: /usr/include (Required is at least version "6.6") found components: dart 
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found suitable version "1.71.0", minimum required is "1.40.0") found components: thread system filesystem program_options regex iostreams date_time 
+-- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found version "3.6.1") 
+-- Looking for ignition-math6 -- found version 6.7.0
+-- Searching for dependencies of ignition-math6
+-- Looking for OGRE...
+-- OGRE_PREFIX_WATCH changed.
+-- Checking for module 'OGRE'
+--   Found OGRE, version 1.9.0
+-- Found Ogre Ghadamon (1.9.0)
+-- Found OGRE: optimized;/usr/lib/x86_64-linux-gnu/libOgreMain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreMain.so
+-- Looking for OGRE_Paging...
+-- Found OGRE_Paging: optimized;/usr/lib/x86_64-linux-gnu/libOgrePaging.so;debug;/usr/lib/x86_64-linux-gnu/libOgrePaging.so
+-- Looking for OGRE_Terrain...
+-- Found OGRE_Terrain: optimized;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so
+-- Looking for OGRE_Property...
+-- Found OGRE_Property: optimized;/usr/lib/x86_64-linux-gnu/libOgreProperty.so;debug;/usr/lib/x86_64-linux-gnu/libOgreProperty.so
+-- Looking for OGRE_RTShaderSystem...
+-- Found OGRE_RTShaderSystem: optimized;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so;debug;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so
+-- Looking for OGRE_Volume...
+-- Found OGRE_Volume: optimized;/usr/lib/x86_64-linux-gnu/libOgreVolume.so;debug;/usr/lib/x86_64-linux-gnu/libOgreVolume.so
+-- Looking for OGRE_Overlay...
+-- Found OGRE_Overlay: optimized;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so;debug;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so
+-- Looking for ignition-math6 -- found version 6.7.0
+-- Looking for ignition-transport8 -- found version 8.2.0
+-- Searching for dependencies of ignition-transport8
+-- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found suitable version "3.6.1", minimum required is "3") 
+-- Config-file not installed for ZeroMQ -- checking for pkg-config
+-- Checking for module 'libzmq >= 4'
+--   Found libzmq , version 4.3.2
+-- Found ZeroMQ: TRUE (Required is at least version "4") 
+-- Checking for module 'uuid'
+--   Found uuid, version 2.34.0
+-- Found UUID: TRUE  
+-- Looking for ignition-msgs5 -- found version 5.6.0
+-- Searching for dependencies of ignition-msgs5
+-- Looking for ignition-math6 -- found version 6.7.0
+-- Checking for module 'tinyxml2'
+--   Found tinyxml2, version 6.2.0
+-- Looking for ignition-msgs5 -- found version 5.6.0
+-- Looking for ignition-common3 -- found version 3.10.0
+-- Searching for dependencies of ignition-common3
+-- Looking for dlfcn.h - found
+-- Looking for libdl - found
+-- Found DL: TRUE  
+-- Searching for <ignition-common3> component [graphics]
+-- Looking for ignition-common3-graphics -- found version 3.10.0
+-- Searching for dependencies of ignition-common3-graphics
+-- Looking for ignition-math6 -- found version 6.7.0
+-- Looking for ignition-fuel_tools4 -- found version 4.3.0
+-- Searching for dependencies of ignition-fuel_tools4
+-- Found CURL: /usr/lib/x86_64-linux-gnu/libcurl.so (found version "7.68.0")  
+-- Checking for module 'jsoncpp'
+--   Found jsoncpp, version 1.7.4
+-- Found JSONCPP: TRUE  
+-- Checking for module 'yaml-0.1'
+--   Found yaml-0.1, version 0.2.2
+-- Found YAML: TRUE  
+-- Checking for module 'libzip'
+--   Found libzip, version 1.5.1
+-- Found ZIP: TRUE  
+-- Looking for ignition-common3 -- found version 3.10.0
+-- Looking for ignition-msgs5 -- found version 5.6.0
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/akash/catkin_ws/build
+####
+#### Running command: "make -j1 -l1" in "/home/akash/catkin_ws/build"
+####
+Scanning dependencies of target gazebo_tutorials
+[ 50%] Building CXX object gazebo_ros_demos/gazebo_tutorials/CMakeFiles/gazebo_tutorials.dir/src/simple_world_plugin.cpp.o
+[100%] Linking CXX shared library /home/akash/catkin_ws/devel/lib/libgazebo_tutorials.so
+[100%] Built target gazebo_tutorials
+------------------------------------------------------------------------------------------------------------
+LAUNCH GAZEBO
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws$ source devel/setup.bash
+akash@akash-VirtualBox:~/catkin_ws$ roslaunch rrbot_gazebo rrbot_world.launch
+
+... logging to /home/akash/.ros/log/b98e13b6-87ce-11eb-895f-bbe34e155b8a/roslaunch-akash-VirtualBox-3369.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+
+xacro: in-order processing became default in ROS Melodic. You can drop the option.
+started roslaunch server http://akash-VirtualBox:42265/
+
+SUMMARY
+========
+
+PARAMETERS
+ * /gazebo/enable_ros_network: True
+ * /robot_description: <?xml version="1....
+ * /rosdistro: noetic
+ * /rosversion: 1.15.9
+ * /use_sim_time: True
+
+NODES
+  /
+    gazebo (gazebo_ros/gzserver)
+    gazebo_gui (gazebo_ros/gzclient)
+    urdf_spawner (gazebo_ros/spawn_model)
+
+ROS_MASTER_URI=http://localhost:11311
+
+process[gazebo-1]: started with pid [3385]
+process[gazebo_gui-2]: started with pid [3389]
+process[urdf_spawner-3]: started with pid [3395]
+[INFO] [1616064703.776225, 0.000000]: Loading model XML from ros parameter robot_description
+[INFO] [1616064703.924573, 0.000000]: Waiting for service /gazebo/spawn_urdf_model
+[ INFO] [1616064708.624878351]: Finished loading Gazebo ROS API Plugin.
+[ INFO] [1616064708.630376670]: waitForService: Service [/gazebo/set_physics_properties] has not been advertised, waiting...
+[ INFO] [1616064709.106002652]: Finished loading Gazebo ROS API Plugin.
+[ INFO] [1616064709.113876547]: waitForService: Service [/gazebo_gui/set_physics_properties] has not been advertised, waiting...
+[ INFO] [1616064712.345982118]: waitForService: Service [/gazebo/set_physics_properties] is now available.
+[INFO] [1616064712.430319, 0.023000]: Calling service /gazebo/spawn_urdf_model
+[ INFO] [1616064712.477944825, 0.050000000]: Physics dynamic reconfigure ready.
+[ INFO] [1616064714.925390402, 0.179000000]: Camera Plugin: Using the 'robotNamespace' param: '/'
+[INFO] [1616064715.028669, 0.179000]: Spawn status: SpawnModel: Successfully spawned entity
+[ INFO] [1616064715.061928290, 0.179000000]: Camera Plugin (ns = /)  <tf_prefix_>, set to ""
+[urdf_spawner-3] process has finished cleanly
+log file: /home/akash/.ros/log/b98e13b6-87ce-11eb-895f-bbe34e155b8a/urdf_spawner-3*.log
+[ INFO] [1616064717.886046773, 0.179000000]: Laser Plugin: Using the 'robotNamespace' param: '/'
+[ INFO] [1616064717.886261626, 0.179000000]: Starting GazeboRosLaser Plugin (ns = /)
+[ INFO] [1616064717.909512188, 0.179000000]: GPU Laser Plugin (ns = /) <tf_prefix_>, set to ""
+[ INFO] [1616064717.912857150, 0.179000000]: LoadThread function completed
+[ INFO] [1616064719.015445213, 0.179000000]: Loading gazebo_ros_control plugin
+[ INFO] [1616064719.015923067, 0.179000000]: Starting gazebo_ros_control plugin in namespace: /rrbot
+[ INFO] [1616064719.016774548, 0.179000000]: gazebo_ros_control plugin is waiting for model URDF in parameter [/robot_description] on the ROS param server.
+[ INFO] [1616064719.401630509, 0.179000000]: Loaded gazebo_ros_control.
+
+libcurl: (6) Could not resolve host: fuel.ignitionrobotics.org
+
+
+/// INSERT --> DESIRED OBJECT AT DESIRED LOCATION
+============================================================================================================
+LAUNCH RRBOT_CONTROLLER
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~$ cd catkin_ws
+akash@akash-VirtualBox:~/catkin_ws$ source devel/setup.bash
+akash@akash-VirtualBox:~/catkin_ws$ roslaunch rrbot_control rrbot_control.launch
+
+... logging to /home/akash/.ros/log/b98e13b6-87ce-11eb-895f-bbe34e155b8a/roslaunch-akash-VirtualBox-3657.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+
+started roslaunch server http://akash-VirtualBox:34707/
+
+SUMMARY
+========
+
+PARAMETERS
+ * /rosdistro: noetic
+ * /rosversion: 1.15.9
+ * /rrbot/joint1_position_controller/joint: joint1
+ * /rrbot/joint1_position_controller/pid/d: 10.0
+ * /rrbot/joint1_position_controller/pid/i: 0.01
+ * /rrbot/joint1_position_controller/pid/p: 100.0
+ * /rrbot/joint1_position_controller/type: effort_controller...
+ * /rrbot/joint2_position_controller/joint: joint2
+ * /rrbot/joint2_position_controller/pid/d: 10.0
+ * /rrbot/joint2_position_controller/pid/i: 0.01
+ * /rrbot/joint2_position_controller/pid/p: 100.0
+ * /rrbot/joint2_position_controller/type: effort_controller...
+ * /rrbot/joint_state_controller/publish_rate: 50
+ * /rrbot/joint_state_controller/type: joint_state_contr...
+
+NODES
+  /
+    robot_state_publisher (robot_state_publisher/robot_state_publisher)
+  /rrbot/
+    controller_spawner (controller_manager/spawner)
+
+ROS_MASTER_URI=http://localhost:11311
+
+process[rrbot/controller_spawner-1]: started with pid [3671]
+process[robot_state_publisher-2]: started with pid [3672]
+[INFO] [1616064892.940803, 0.000000]: Controller Spawner: Waiting for service controller_manager/load_controller
+[INFO] [1616064892.959493, 0.000000]: Controller Spawner: Waiting for service controller_manager/switch_controller
+[INFO] [1616064892.970073, 167.843000]: Controller Spawner: Waiting for service controller_manager/unload_controller
+[INFO] [1616064892.985558, 167.847000]: Loading controller: joint_state_controller
+[INFO] [1616064893.247065, 168.016000]: Loading controller: joint1_position_controller
+[INFO] [1616064894.012826, 168.653000]: Loading controller: joint2_position_controller
+[INFO] [1616064894.113844, 168.679000]: Controller Spawner: Loaded controllers: joint_state_controller, joint1_position_controller, joint2_position_controller
+[INFO] [1616064894.120468, 168.680000]: Started controllers: joint_state_controller, joint1_position_controller, joint2_position_controller
+
+============================================================================================================
+CHECK FOR ACTIVE ROS_TOPICS
+============================================================================================================
+akash@akash-VirtualBox:~/catkin_ws$ rostopic list
+/clock
+/gazebo/link_states
+/gazebo/model_states
+/gazebo/parameter_descriptions
+/gazebo/parameter_updates
+/gazebo/set_link_state
+/gazebo/set_model_state
+/rosout
+/rosout_agg
+/rrbot/camera1/camera_info
+/rrbot/camera1/image_raw
+/rrbot/camera1/image_raw/compressed
+/rrbot/camera1/image_raw/compressed/parameter_descriptions
+/rrbot/camera1/image_raw/compressed/parameter_updates
+/rrbot/camera1/image_raw/compressedDepth
+/rrbot/camera1/image_raw/compressedDepth/parameter_descriptions
+/rrbot/camera1/image_raw/compressedDepth/parameter_updates
+/rrbot/camera1/image_raw/theora
+/rrbot/camera1/image_raw/theora/parameter_descriptions
+/rrbot/camera1/image_raw/theora/parameter_updates
+/rrbot/camera1/parameter_descriptions
+/rrbot/camera1/parameter_updates
+/rrbot/joint1_position_controller/command
+/rrbot/joint1_position_controller/pid/parameter_descriptions
+/rrbot/joint1_position_controller/pid/parameter_updates
+/rrbot/joint1_position_controller/state
+/rrbot/joint2_position_controller/command
+/rrbot/joint2_position_controller/pid/parameter_descriptions
+/rrbot/joint2_position_controller/pid/parameter_updates
+/rrbot/joint2_position_controller/state
+/rrbot/joint_states
+/rrbot/laser/scan
+/tf
+/tf_static
+------------------------------------------------------------------------------------------------------------
+PUBLISH POSITION TO DEDICATED TOPICS
+------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws$ rostopic pub -1 /rrbot/joint1_position_controller/command std_msgs/Float64 "data: 1.5" 
+publishing and latching message for 3.0 seconds
+
+akash@akash-VirtualBox:~/catkin_ws$ rostopic pub -1 /rrbot/joint2_position_controller/command std_msgs/Float64 "data: 1.5" 
+publishing and latching message for 3.0 seconds
+
+=============================================================================================================
+
+PUBLISH TO ACTIVE TOPICS VIA PYTHON GUI
+=============================================================================================================
+akash@akash-VirtualBox:~$ cd catkin_ws
+akash@akash-VirtualBox:~/catkin_ws$ source devel/setup.bash
+akash@akash-VirtualBox:~/catkin_ws$ rosrun rqt_gui rqt_gui
+
+/// PLUGINS-->TOPICS-->SELECT TOPICS U WANNA PUBLISH TO
+
+=============================================================================================================
+
+VISUALISE ROBOT WORLD IN RVIZ
+=============================================================================================================
+akash@akash-VirtualBox:~$ cd catkin_ws
+akash@akash-VirtualBox:~/catkin_ws$ source devel/setup.bash
+akash@akash-VirtualBox:~/catkin_ws$ rosrun rviz rviz
+
+/// ADD--> ROBOT MODEL/CAMERA
+
+=============================================================================================================
+
+IMAGE_PROCESSING
+=============================================================================================================
+
+MANUALLY EDIT THE IMAGE_CONVERTER SOURCE CODE TO PERFORM IMAGE PROCESSING
+-------------------------------------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////
+
+#include <ros/ros.h>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+static const std::string OPENCV_WINDOW = "Image window";
+
+class ImageConverter
+{
+  ros::NodeHandle nh_;
+  image_transport::ImageTransport it_;
+  image_transport::Subscriber image_sub_;
+  image_transport::Publisher image_pub_;
+
+public:
+  ImageConverter()
+    : it_(nh_)
+  {
+    // Subscrive to input video feed and publish output video feed
+    image_sub_ = it_.subscribe("/rrbot/camera1/image_raw", 1,
+      &ImageConverter::imageCb, this);
+    image_pub_ = it_.advertise("/image_converter/output_video", 1);
+
+    cv::namedWindow(OPENCV_WINDOW);
+  }
+
+  ~ImageConverter()
+  {
+    cv::destroyWindow(OPENCV_WINDOW);
+  }
+
+  void imageCb(const sensor_msgs::ImageConstPtr& msg)
+  {
+    cv_bridge::CvImagePtr cv_ptr;
+    cv::Mat gray_out;  //*************************
+    cv::Mat canny_out; //*************************
+    try
+    {
+      cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+      return;
+    }
+
+    // ************** CODE HERE FOR THE IMAGE PROCESSING YOU WANNA PERFORM ***************
+      cv::cvtColor(cv_ptr->image, gray_out, CV_BGR2GRAY);
+      cv::GaussianBlur(gray_out, gray_out, cv::Size(3,3),0,0);
+      cv::Canny(gray_out, canny_out, 50,125,3);
+      cv_ptr->image=canny_out;
+      
+    // Draw an example circle on the video stream
+    if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
+      cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
+
+    // Update GUI Window
+    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    cv::waitKey(3);
+
+    // Output modified video stream
+    image_pub_.publish(cv_ptr->toImageMsg());
+  }
+};
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "image_converter");
+  ImageConverter ic;
+  ros::spin();
+  return 0;
+}
+
+////////////////////////////////////////////////////////////////////
+
+MANUALLY EDIT THE CMAKE TO INCORPORATE CHANGES FOR THE NEW EXECUTABLE (NODE) TO BE GENERATED FROM THE SOURCE CODE
+-------------------------------------------------------------------------------------------------------------
+cmake_minimum_required(VERSION 3.0.2)
+project(opencv_demo)
+
+find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
+  image_transport
+  roscpp
+  sensor_msgs
+  std_msgs
+)
+
+
+catkin_package(
+#  INCLUDE_DIRS include
+#  LIBRARIES opencv_demo
+#  CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs
+#  DEPENDS system_lib
+)
+
+
+include_directories(
+# include
+  ${catkin_INCLUDE_DIRS}
+)
+****************
+add_executable(image_converter src/image_converter.cpp)
+target_link_libraries(image_converter ${catkin_LIBRARIES})
+****************
+---------------------------------------------------------------------------------------------------------------
+
+BUILD THE OPENCV_DEMO PKG TO GENERATE EXECUTABLE(NODE) FROM THE SOURCE CODE
+===============================================================================================================
+
+akash@akash-VirtualBox:~/catkin_ws$ catkin_make
+
+Base path: /home/akash/catkin_ws
+Source space: /home/akash/catkin_ws/src
+Build space: /home/akash/catkin_ws/build
+Devel space: /home/akash/catkin_ws/devel
+Install space: /home/akash/catkin_ws/install
+####
+#### Running command: "make cmake_check_build_system" in "/home/akash/catkin_ws/build"
+####
+####
+#### Running command: "make -j1 -l1" in "/home/akash/catkin_ws/build"
+####
+Scanning dependencies of target image_converter
+[ 25%] Building CXX object opencv_demo/CMakeFiles/image_converter.dir/src/image_converter.cpp.o
+[ 50%] Linking CXX executable /home/akash/catkin_ws/devel/lib/opencv_demo/image_converter
+[ 50%] Built target image_converter
+[100%] Built target gazebo_tutorials
+
+----------------------------------------------------------------------------------------------------------------
+RUN EXECUTABLE (NODE) TO VIEW OUTPUT OF PROCESSED IMAGE CAPTURED BY THE CAMERA IN RRBOT IN REAL TIME
+----------------------------------------------------------------------------------------------------------------
+akash@akash-VirtualBox:~/catkin_ws$ source devel/setup.bash
+akash@akash-VirtualBox:~/catkin_ws$ rosrun opencv_demo image_converter
+
+
+
+
+
+
+
